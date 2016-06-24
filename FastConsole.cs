@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 
 namespace ConsoleManager
@@ -22,6 +23,9 @@ namespace ConsoleManager
         private static int ScreenWidth => Console.WindowWidth - 1;
         private static int ScreenHeight => Console.WindowHeight - 1;
 
+        private static StreamWriter StandardOutput { get; } = new StreamWriter(Console.OpenStandardOutput());
+        private static string NewLine { get; } = Environment.NewLine;
+
         private static List<string> ConsoleOutput { get; } = new List<string>();
         private static int ConsoleOutputLength => ScreenHeight - 6 - 2;
         private static Queue<string> ConsoleInput { get; } = new Queue<string>();
@@ -33,7 +37,7 @@ namespace ConsoleManager
         public static bool Enabled => !Stopped;
         private static bool Stopped { get; set; }
 
-        private static ConcurrentDictionary<string, Func<object[]>> ConstantLines { get; }= new ConcurrentDictionary<string, Func<object[]>>();
+        private static ConcurrentDictionary<string, Func<object[]>> ConstantLines { get; } = new ConcurrentDictionary<string, Func<object[]>>();
         public static void ConstantAddLine(string format, Func<object[]> @params)
         {
             if(@params != null)
@@ -41,11 +45,25 @@ namespace ConsoleManager
         }
         public static void ConstantClearLines() { ConstantLines.Clear(); }
 
-        public static void WriteLine(string text = "")
+        internal static void Write(string text = "")
         {
             if (!Stopped)
             {
-                ConsoleOutput.Add(text);
+                if (ConsoleOutput.Count == 0 || ConsoleOutput[ConsoleOutput.Count - 1].EndsWith(NewLine))
+                    ConsoleOutput.Add(text);
+                else
+                    ConsoleOutput[ConsoleOutput.Count - 1] += text;
+            }
+        }
+        internal static void WriteLine(string text = "")
+        {
+            if (!Stopped)
+            {
+                if (ConsoleOutput.Count == 0 || ConsoleOutput[ConsoleOutput.Count - 1].EndsWith(NewLine))
+                    ConsoleOutput.Add(text + NewLine);
+                else
+                    ConsoleOutput[ConsoleOutput.Count - 1] += text + NewLine;
+
                 if (ConsoleOutput.Count > ConsoleOutputLength)
                     ConsoleOutput.RemoveAt(0);
             }
@@ -61,6 +79,8 @@ namespace ConsoleManager
             ScreenFPS = fps;
             Console.CursorVisible = cursorVisible;
 
+            Console.SetOut(new ConsoleOutWriter());
+
             ConsoleManagerThread = new Thread(Cycle) { IsBackground = true, Name = "ConsoleManagerThread" };
             ConsoleManagerThread.Start();
         }
@@ -69,6 +89,7 @@ namespace ConsoleManager
             Stopped = true;
             while (ConsoleManagerThread != null && ConsoleManagerThread.IsAlive)
                 Thread.Sleep(ExcecutionMilliseconds);
+            Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
         }
 
 
@@ -92,8 +113,6 @@ namespace ConsoleManager
 
                 foreach (var line in ConstantLines)
                     DrawLine(string.Format(line.Key, line.Value()));
-                
-                DrawLine();
 
                 for (var i = 0; i < ConsoleOutput.Count; i++)
                     DrawLine(ConsoleOutput[i]);
@@ -129,10 +148,8 @@ namespace ConsoleManager
             switch (input.Key)
             {
                 case ConsoleKey.Enter:
-                    ConsoleOutput.Add(CurrentConsoleInput);
-                    if(ConsoleOutput.Count > ConsoleOutputLength)
-                        ConsoleOutput.RemoveAt(0);
-
+                    Write(NewLine);
+                    WriteLine(CurrentConsoleInput);
                     ConsoleInput.Enqueue(CurrentConsoleInput);
                     CurrentConsoleInput = string.Empty;
                     break;
@@ -190,8 +207,11 @@ namespace ConsoleManager
         private static void DrawScreen()
         {
             Console.SetCursorPosition(0, 0);
+
             for (var y = 0; y < ScreenHeight; ++y)
-                Console.WriteLine(ScreenBuffer[y]);
+                StandardOutput.WriteLine(new string(ScreenBuffer[y]).Replace(NewLine, string.Empty));
+            
+            StandardOutput.Flush();
         }
 
         private static void UpdateTitle() { Console.Title = string.Format(TitleFormatted, ScreenFPS); }
