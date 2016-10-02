@@ -11,7 +11,7 @@ namespace ConsoleManager
     {
         private static Thread ConsoleManagerThread { get; set; }
 
-        public static string TitleFormatted { get; set; } = "PokeD Server FPS: {0}";
+        public static string TitleFormatted { get; set; } = "FastConsole FPS: {0}";
 
         public static int ScreenFPS { get { return _screenFPS; } set { _screenFPS = value; _excecutionMilliseconds = 1000 / _screenFPS; UpdateTitle(); } }
         private static int _screenFPS;
@@ -24,7 +24,6 @@ namespace ConsoleManager
         private static int ScreenHeight => Console.WindowHeight - 1;
 
         private static StreamWriter StandardOutput { get; } = new StreamWriter(Console.OpenStandardOutput());
-        private static string NewLine { get; } = Environment.NewLine;
 
         private static List<string> ConsoleOutput { get; } = new List<string>();
         private static int ConsoleOutputLength => ScreenHeight - 6 - 2;
@@ -49,7 +48,7 @@ namespace ConsoleManager
         {
             if (!Stopped)
             {
-                if (ConsoleOutput.Count == 0 || ConsoleOutput[ConsoleOutput.Count - 1].EndsWith(NewLine))
+                if (ConsoleOutput.Count == 0 || ConsoleOutput[ConsoleOutput.Count - 1].EndsWith(Environment.NewLine))
                     ConsoleOutput.Add(text);
                 else
                     ConsoleOutput[ConsoleOutput.Count - 1] += text;
@@ -59,17 +58,16 @@ namespace ConsoleManager
         {
             if (!Stopped)
             {
-                if (ConsoleOutput.Count == 0 || ConsoleOutput[ConsoleOutput.Count - 1].EndsWith(NewLine))
-                    ConsoleOutput.Add(text + NewLine);
+                if (ConsoleOutput.Count == 0 || ConsoleOutput[ConsoleOutput.Count - 1].EndsWith(Environment.NewLine))
+                    ConsoleOutput.Add(text + Environment.NewLine);
                 else
-                    ConsoleOutput[ConsoleOutput.Count - 1] += text + NewLine;
+                    ConsoleOutput[ConsoleOutput.Count - 1] += text + Environment.NewLine;
 
                 if (ConsoleOutput.Count > ConsoleOutputLength)
                     ConsoleOutput.RemoveAt(0);
             }
         }
         public static string ReadLine() => Stopped ? string.Empty : ConsoleInput.Dequeue();
-
 
         public static void Start(int fps = 20, bool cursorVisible = false)
         {
@@ -104,10 +102,11 @@ namespace ConsoleManager
                     ScreenBuffer = new char[ScreenHeight][];
                     for (var y = 0; y < ScreenBuffer.Length; y++)
                         ScreenBuffer[y] = new char[ScreenWidth];
+                    Console.Clear();
                 }
 
                 var emptyLine = string.Empty.PadRight(ScreenWidth).ToCharArray();
-                for (var cy = 0; cy < ScreenHeight; cy++)
+                for (var cy = 0; cy < ScreenBuffer.Length; cy++)
                     ScreenBuffer[cy] = emptyLine;
                 CurrentLine = 0;
 
@@ -116,10 +115,9 @@ namespace ConsoleManager
 
                 for (var i = 0; i < ConsoleOutput.Count; i++)
                     DrawLine(ConsoleOutput[i]);
-                
-                HandleInput();
-                DrawLine(CurrentConsoleInput, ScreenHeight > 0 ? ScreenHeight - 1 : ScreenHeight);
 
+                HandleInput();
+                DrawLine(CurrentConsoleInput, ScreenBuffer.Length > 0 ? ScreenBuffer.Length - 1 : ScreenBuffer.Length);
 
                 DrawScreen();
 
@@ -136,7 +134,7 @@ namespace ConsoleManager
                 watch.Start();
             }
 
-            Console.Clear();
+            //Console.Clear();
         }
 
         private static void HandleInput()
@@ -148,7 +146,7 @@ namespace ConsoleManager
             switch (input.Key)
             {
                 case ConsoleKey.Enter:
-                    Write(NewLine);
+                    Write(Environment.NewLine);
                     WriteLine(CurrentConsoleInput);
                     ConsoleInput.Enqueue(CurrentConsoleInput);
                     CurrentConsoleInput = string.Empty;
@@ -208,13 +206,13 @@ namespace ConsoleManager
         {
             Console.SetCursorPosition(0, 0);
 
-            for (var y = 0; y < ScreenHeight; ++y)
-                StandardOutput.WriteLine(new string(ScreenBuffer[y]).Replace(NewLine, string.Empty));
+            for (var y = 0; y < ScreenBuffer.Length; ++y)
+                StandardOutput.WriteLine(new string(ScreenBuffer[y]).Replace(Environment.NewLine, string.Empty));
             
             StandardOutput.Flush();
         }
 
-        private static void UpdateTitle() { Console.Title = string.Format(TitleFormatted, ScreenFPS); }
+        private static void UpdateTitle() => Console.Title = string.Format(TitleFormatted, ScreenFPS);
 
         public static void ClearOutput()
         {
