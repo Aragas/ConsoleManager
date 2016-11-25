@@ -26,7 +26,7 @@ namespace ConsoleManager
         private static StreamWriter StandardOutput { get; } = new StreamWriter(Console.OpenStandardOutput());
 
         private static List<string> ConsoleOutput { get; } = new List<string>();
-        private static int ConsoleOutputLength => ScreenHeight - 2;
+        private static int ConsoleOutputLength => ScreenHeight - ConstantLines.Count - 2;
         private static Queue<string> ConsoleInput { get; } = new Queue<string>();
         private static string CurrentConsoleInput { get; set; } = string.Empty;
         private static int CurrentLine { get; set; }
@@ -49,24 +49,70 @@ namespace ConsoleManager
         }
         public static void ConstantClearLines() { ConstantLines.Clear(); }
 
+        private static void SubstringText(string text, List<string> list)
+        {
+            var len = Environment.NewLine.Length;
+            if (text.Length >= ScreenWidth)
+            {
+                var len1 = ScreenWidth - 1 - len;
+                list.Add(text.Substring(0, len1));
+                SubstringText(text.Substring(len1, text.Length - len1), list);
+            }
+            else
+            {
+                list.Add(text);
+                return;
+            }
+        }
         internal static void Write(string text = "")
         {
             if (!Stopped)
             {
                 if (ConsoleOutput.Count == 0 || ConsoleOutput[ConsoleOutput.Count - 1].EndsWith(Environment.NewLine))
-                    ConsoleOutput.Add(text);
+                {
+                    var splittedText = new List<string>();
+                    SubstringText(text, splittedText);
+
+                    for (var i = 0; i < splittedText.Count; i++)
+                    {
+                        if (i == splittedText.Count - 1) // -- Don't add Environment.NewLine to last element
+                            ConsoleOutput.Add(splittedText[i]);
+                        else
+                            ConsoleOutput.Add(splittedText[i] + Environment.NewLine);
+                    }
+                }
                 else
-                    ConsoleOutput[ConsoleOutput.Count - 1] += text;
+                {
+                    var splittedText = new List<string>();
+                    SubstringText(ConsoleOutput[ConsoleOutput.Count - 1] + text, splittedText); // -- Use last output when splitting text
+
+                    for (var i = 0; i < splittedText.Count; i++)
+                    {
+                        if (i == 0 && i == splittedText.Count - 1) // -- First and last element
+                            ConsoleOutput[ConsoleOutput.Count - 1] = splittedText[i];
+                        else if (i == 0) // -- First element
+                            ConsoleOutput[ConsoleOutput.Count - 1] = splittedText[i] + Environment.NewLine;
+                        else if (i == splittedText.Count - 1) // -- Last element
+                            ConsoleOutput.Add(splittedText[i]);
+                        else
+                            ConsoleOutput.Add(splittedText[i] + Environment.NewLine);
+                    }
+                }
             }
         }
         internal static void WriteLine(string text = "")
         {
             if (!Stopped)
             {
+                var splittedText = new List<string>();
+                SubstringText(text, splittedText);
+
                 if (ConsoleOutput.Count == 0 || ConsoleOutput[ConsoleOutput.Count - 1].EndsWith(Environment.NewLine))
-                    ConsoleOutput.Add(text + Environment.NewLine);
+                    for (var i = 0; i < splittedText.Count; i++)
+                        ConsoleOutput.Add(splittedText[i] + Environment.NewLine);
                 else
-                    ConsoleOutput[ConsoleOutput.Count - 1] += text + Environment.NewLine;
+                    for (var i = 0; i < splittedText.Count; i++)   
+                        ConsoleOutput[ConsoleOutput.Count - 1] += splittedText[i] + Environment.NewLine;
 
                 if (ConsoleOutput.Count > ConsoleOutputLength)
                     ConsoleOutput.RemoveAt(0);
@@ -257,14 +303,14 @@ namespace ConsoleManager
         private static void DrawLineInternal(string text)
         {
             if (ScreenBuffer.Length > CurrentLine)
-                ScreenBuffer[CurrentLine] = text.PadRight(ScreenWidth).ToCharArray();
+                ScreenBuffer[CurrentLine] = text.ToCharArray();
 
             CurrentLine++;
         }
         private static void DrawLineInternal(string text, int y)
         {
             if (ScreenBuffer.Length > y)
-                ScreenBuffer[y] = text.PadRight(ScreenWidth).ToCharArray();
+                ScreenBuffer[y] = text.ToCharArray();
         }
         private static void DrawCurrentLine()
         {
@@ -289,7 +335,7 @@ namespace ConsoleManager
             Console.SetCursorPosition(0, 0);
             
             for (var y = 0; y < ScreenBuffer.Length; ++y)
-                StandardOutput.WriteLine(new string(ScreenBuffer[y]).Replace(Environment.NewLine, string.Empty));
+                StandardOutput.WriteLine(new string(ScreenBuffer[y]).Replace(Environment.NewLine, string.Empty).PadRight(ScreenWidth));
             
             StandardOutput.Flush();
 
