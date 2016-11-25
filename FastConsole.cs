@@ -26,10 +26,15 @@ namespace ConsoleManager
         private static StreamWriter StandardOutput { get; } = new StreamWriter(Console.OpenStandardOutput());
 
         private static List<string> ConsoleOutput { get; } = new List<string>();
-        private static int ConsoleOutputLength => ScreenHeight - 6 - 2;
+        private static int ConsoleOutputLength => ScreenHeight - 2;
         private static Queue<string> ConsoleInput { get; } = new Queue<string>();
         private static string CurrentConsoleInput { get; set; } = string.Empty;
         private static int CurrentLine { get; set; }
+        private static int CurrentLineCharPos { get; set; }
+        private static bool CurrentLineCharPosVisible { get; set; }
+
+        private static List<string> InputHistory { get; } = new List<string>(20);
+        private static int InputHistoryPos { get; set; }
 
         public static bool InputAvailable => !Stopped && ConsoleInput.Count > 0;
 
@@ -95,6 +100,7 @@ namespace ConsoleManager
         private static void Cycle()
         {
             var watch = Stopwatch.StartNew();
+            var watch2 = Stopwatch.StartNew();
             while (!Stopped)
             {
                 if (ScreenBuffer.Length != ScreenHeight)
@@ -122,6 +128,15 @@ namespace ConsoleManager
                 DrawScreen();
 
 
+                // -- Default Windows Console Cursor Blink Rate
+                if (watch2.ElapsedMilliseconds > 530)
+                {
+                    CurrentLineCharPosVisible = !CurrentLineCharPosVisible;
+
+                    watch2.Reset();
+                    watch2.Start();
+                }
+
                 if (watch.ElapsedMilliseconds < ExcecutionMilliseconds)
                 {
                     ConsoleManagerThreadTime = watch.ElapsedMilliseconds;
@@ -146,29 +161,78 @@ namespace ConsoleManager
             switch (input.Key)
             {
                 case ConsoleKey.Enter:
-                    Write(Environment.NewLine);
+                    //Write(Environment.NewLine);
                     WriteLine(CurrentConsoleInput);
                     ConsoleInput.Enqueue(CurrentConsoleInput);
+
+                    InputHistory.Add(CurrentConsoleInput);
+                    if (InputHistory.Count > 20)
+                        InputHistory.RemoveAt(InputHistory.Count - 1);
+
                     CurrentConsoleInput = string.Empty;
+                    CurrentLineCharPos = 0;
                     break;
 
                 case ConsoleKey.Backspace:
-                    if (CurrentConsoleInput.Length >= 1)
-                        CurrentConsoleInput = CurrentConsoleInput.Remove(CurrentConsoleInput.Length - 1);
+                    if (CurrentLineCharPos <= 0)
+                        break;
+
+                    if (CurrentConsoleInput.Length > 0)
+                    {
+                        CurrentConsoleInput = CurrentConsoleInput.Remove(CurrentLineCharPos - 1, 1);
+                        CurrentLineCharPos--;
+                    }
+                    break;
+                case ConsoleKey.Delete:
+                    if(CurrentLineCharPos > CurrentConsoleInput.Length)
+                        break;
+
+                    if (CurrentLineCharPos < CurrentConsoleInput.Length)
+                        CurrentConsoleInput = CurrentConsoleInput.Remove(CurrentLineCharPos, 1);
                     break;
 
                 case ConsoleKey.Escape:
+
                 case ConsoleKey.UpArrow:
+                    if (InputHistoryPos < InputHistory.Count)
+                    {
+                        InputHistoryPos++;
+                        CurrentConsoleInput = InputHistory[InputHistory.Count - InputHistoryPos];
+                    }
+                    break;
                 case ConsoleKey.DownArrow:
+                    if (InputHistoryPos > 1)
+                    {
+                        InputHistoryPos--;
+                        CurrentConsoleInput = InputHistory[InputHistory.Count - InputHistoryPos];
+                    }
+                    break;
+
                 case ConsoleKey.LeftArrow:
+                    if (CurrentLineCharPos > 0)
+                        CurrentLineCharPos--;
+                    break;
                 case ConsoleKey.RightArrow:
+                    if (CurrentLineCharPos < CurrentConsoleInput.Length)
+                        CurrentLineCharPos++;
+                    break;
+                case ConsoleKey.Home:
+                    CurrentLineCharPos = 0;
+                    break;
+                case ConsoleKey.End:
+                    CurrentLineCharPos = CurrentConsoleInput.Length;
+                    break;
+
                 case ConsoleKey.Tab:
-                case ConsoleKey.Delete:
                     break;
 
                 default:
-                    if(char.IsLetterOrDigit(input.KeyChar) || input.KeyChar == '/')
-                        CurrentConsoleInput += input.KeyChar;
+                    CurrentConsoleInput = CurrentConsoleInput.Insert(CurrentLineCharPos, input.KeyChar.ToString());
+                    CurrentLineCharPos++;
+
+                    //if(char.IsLetterOrDigit(input.KeyChar) || input.KeyChar == ' ' || input.KeyChar == '/')
+                    //    CurrentConsoleInput += input.KeyChar;
+                    //CurrentLineCharPos++;
                     break;
             }
         }
@@ -202,14 +266,34 @@ namespace ConsoleManager
             if (ScreenBuffer.Length > y)
                 ScreenBuffer[y] = text.PadRight(ScreenWidth).ToCharArray();
         }
+        private static void DrawCurrentLine()
+        {
+            if (!CurrentLineCharPosVisible)
+                return;
+
+
+            var x = CurrentLineCharPos;
+            var y = ScreenBuffer.Length > 0 ? ScreenBuffer.Length - 1 : ScreenBuffer.Length;
+
+            var text = CurrentConsoleInput;
+            if (text.Length > ScreenWidth)
+                text = text.Substring(0, ScreenWidth);
+            text = text.PadRight(ScreenWidth);
+
+
+            Console.MoveBufferArea(x, y, 1, 1, 0, ScreenHeight, text[CurrentLineCharPos], ConsoleColor.White, ConsoleColor.DarkRed);
+            Console.MoveBufferArea(0 + 1, ScreenHeight, 1, 1, 0, ScreenHeight);
+        }
         private static void DrawScreen()
         {
             Console.SetCursorPosition(0, 0);
-
+            
             for (var y = 0; y < ScreenBuffer.Length; ++y)
                 StandardOutput.WriteLine(new string(ScreenBuffer[y]).Replace(Environment.NewLine, string.Empty));
             
             StandardOutput.Flush();
+
+            DrawCurrentLine();
         }
 
         private static void UpdateTitle() => Console.Title = string.Format(TitleFormatted, ScreenFPS);
