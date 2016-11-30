@@ -32,6 +32,7 @@ namespace ConsoleManager
         private static int CurrentLine { get; set; }
         private static int CurrentLineCharPos { get; set; }
         private static bool CurrentLineCharPosVisible { get; set; }
+        public static bool IsRunningOnMono { get; } = Type.GetType("Mono.Runtime") != null;
 
         private static List<string> InputHistory { get; } = new List<string>(20);
         private static int InputHistoryPos { get; set; }
@@ -339,7 +340,8 @@ namespace ConsoleManager
             
             StandardOutput.Flush();
 
-            DrawCurrentLine();
+            if(!IsRunningOnMono)
+                DrawCurrentLine();
         }
 
         private static void UpdateTitle() => Console.Title = string.Format(TitleFormatted, ScreenFPS);
