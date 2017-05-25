@@ -13,10 +13,10 @@ namespace ConsoleManager
 
         public static string TitleFormatted { get; set; } = "FastConsole FPS: {0}";
 
-        public static int ScreenFPS { get { return _screenFPS; } set { _screenFPS = value; _excecutionMilliseconds = 1000 / _screenFPS; UpdateTitle(); } }
+        public static int ScreenFPS { get => _screenFPS; set { _screenFPS = value; _excecutionMilliseconds = 1000 / _screenFPS; UpdateTitle(); } }
         private static int _screenFPS;
 
-        private static int ExcecutionMilliseconds { get { return _excecutionMilliseconds; } set { _excecutionMilliseconds = value; _screenFPS = 1000 / _excecutionMilliseconds; UpdateTitle(); } }
+        private static int ExcecutionMilliseconds { get => _excecutionMilliseconds; set { _excecutionMilliseconds = value; _screenFPS = 1000 / _excecutionMilliseconds; UpdateTitle(); } }
         private static int _excecutionMilliseconds;
         
         private static char[][] ScreenBuffer { get; set; } = new char[0][];
@@ -126,6 +126,8 @@ namespace ConsoleManager
             if (ConsoleManagerThread != null && ConsoleManagerThread.IsAlive)
                 Stop();
 
+            Stopped = false;
+
             ScreenFPS = fps;
             Console.CursorVisible = cursorVisible;
 
@@ -140,6 +142,11 @@ namespace ConsoleManager
             while (ConsoleManagerThread != null && ConsoleManagerThread.IsAlive)
                 Thread.Sleep(ExcecutionMilliseconds);
             Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
+
+            ConsoleOutput.Clear();
+            ConsoleInput.Clear();
+            InputHistory.Clear();
+            ConstantLines.Clear();
         }
 
 
@@ -337,10 +344,10 @@ namespace ConsoleManager
             
             for (var y = 0; y < ScreenBuffer.Length; ++y)
                 StandardOutput.WriteLine(new string(ScreenBuffer[y]).Replace(Environment.NewLine, string.Empty).PadRight(ScreenWidth));
-            
+
             StandardOutput.Flush();
 
-            if(!IsRunningOnMono)
+            if (!IsRunningOnMono)
                 DrawCurrentLine();
         }
 
