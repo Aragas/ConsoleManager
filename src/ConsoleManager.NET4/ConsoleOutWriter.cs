@@ -9,8 +9,8 @@ namespace ConsoleManager
         public override Encoding Encoding => Console.OutputEncoding;
 
 
-        public override void Write(string value) { FastConsole.Write(value); }
+        public override void Write(string value) => FastConsole.Write(value);
 
-        public override void WriteLine(string value) { FastConsole.WriteLine(value); }
+        public override void WriteLine(string value) => FastConsole.WriteLine(value);
     }
 }
