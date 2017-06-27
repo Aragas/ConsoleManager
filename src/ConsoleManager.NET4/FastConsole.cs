@@ -347,7 +347,11 @@ namespace ConsoleManager
 
             StandardOutput.Flush();
 
+#if NETSTANDARD2_0
+            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+#else
             if (!IsRunningOnMono)
+#endif
                 DrawCurrentLine();
         }
 
