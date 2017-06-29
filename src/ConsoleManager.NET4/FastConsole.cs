@@ -40,7 +40,7 @@ namespace ConsoleManager
         public static bool InputAvailable => !Stopped && ConsoleInput.Count > 0;
 
         public static bool Enabled => !Stopped;
-        private static bool Stopped { get; set; }
+        private static bool Stopped { get; set; } = true;
 
         private static ConcurrentDictionary<string, Func<object[]>> ConstantLines { get; } = new ConcurrentDictionary<string, Func<object[]>>();
         public static void ConstantAddLine(string format, Func<object[]> @params)
